@@ -76,13 +76,7 @@ api-message-consumer/
 - Procure o executável do Python dentro do ambiente virtual.
 
 
-7- Crie e execute os containers Docker necessários:
-   ```bash
-   docker-compose up --build
-   ```
-
-
-8- Assim que o container for executado, a API começará a consumir as mensagens das filas do RabbitMQ automaticamente. O serviço ficará rodando em um loop contínuo, aguardando novas mensagens nas filas configuradas.
+7- Ao dar run no "main.py", a API começará a consumir as mensagens das filas do RabbitMQ automaticamente. O serviço ficará rodando em um loop contínuo, aguardando novas mensagens nas filas configuradas.
 
 
 ### **Logs**:
