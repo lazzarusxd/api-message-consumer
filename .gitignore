@@ -1,0 +1,32 @@
+# Python
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Ambiente virtual
+venv/
+
+# Variaveis de ambiente
+.env
+
+# Arquivos de configuração do Poetry
+poetry.lock
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Outros arquivos temporarios
+tmp/
+temp/
+*.tmp

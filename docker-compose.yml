@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+    volumes:
+      - ./app:/app
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    command: sh -c "poetry run python main.py"
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    name: shared-network
