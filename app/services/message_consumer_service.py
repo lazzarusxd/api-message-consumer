@@ -7,7 +7,6 @@ from aio_pika.exceptions import QueueEmpty
 from twilio.rest import Client
 import aiosmtplib
 import aio_pika
-from fastapi import HTTPException, status
 from pydantic import EmailStr
 
 
@@ -22,29 +21,27 @@ class RabbitmqConsumer:
         self.__channel = None
 
     async def __connect(self):
-        try:
-            url = f"amqp://{self.__username}:{self.__password}@{self.__host}:{self.__port}/"
-            self.__connection = await aio_pika.connect_robust(url)
-            self.__channel = await self.__connection.channel()
-        except Exception:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Erro interno do servidor."
-            )
+        url = f"amqp://{self.__username}:{self.__password}@{self.__host}:{self.__port}/"
+        print(f"Conectando ao RabbitMQ: {url}")
+        self.__connection = await aio_pika.connect_robust(url)
+        self.__channel = await self.__connection.channel()
+        print(f"Conexão estabelecida e canal criado para a fila '{self.__queue}'.")
 
     async def consume_messages(self):
         if not self.__connection or self.__connection.is_closed:
             await self.__connect()
 
         queue = await self.__channel.declare_queue(self.__queue, durable=True)
+        print(f"Consumindo mensagens da fila '{self.__queue}'...")
 
         while True:
             try:
-                message = await queue.get()
+                message = await queue.get(timeout=5)
                 if message is None:
                     continue
 
                 message_body = message.body.decode()
+                print(f"Mensagem recebida: {message_body}")
                 data = json.loads(message_body)
 
                 if self.__queue == "sms_queue":
@@ -53,6 +50,7 @@ class RabbitmqConsumer:
                     await self.__process_email(data)
 
                 await message.ack()
+                print(f"Mensagem reconhecida e marcada como processada: {message_body}")
             except QueueEmpty:
                 print("Fila vazia, aguardando novas mensagens...")
                 await asyncio.sleep(5)
@@ -60,30 +58,34 @@ class RabbitmqConsumer:
                 print(f"Erro ao consumir mensagem: {e}")
                 await asyncio.sleep(5)
 
-    async def __process_sms(self, data: dict):
-        try:
-            if data["status_code"] == 200 and data["data"]["action"] == "SMS sent":
-                to_number = data["data"]["data"]["to_number"]
-                message = data["data"]["data"]["message"]
-
-                await self.__send_sms(to_number, message)
-            else:
-                print("Erro ao processar SMS:", data)
-        except KeyError as e:
-            print(f"Erro ao processar SMS, chave ausente: {e}")
-
     async def __process_email(self, data: dict):
         try:
-            if data["status_code"] == 200 and data["data"]["action"] == "EMAIL sent":
-                to_address = data["data"]["data"]["to_address"]
-                subject = data["data"]["data"]["subject"]
-                message = data["data"]["data"]["message"]
+            print(f"Processando Email com dados: {data}")
+            if data["action"] == "EMAIL sent":
+                to_address = data["content"]["to_address"]
+                subject = data["content"]["subject"]
+                message = data["content"]["message"]
 
                 await self.__send_email(to_address, subject, message)
+                print(f"Email enviado com sucesso para {to_address}.")
             else:
-                print("Erro ao processar Email:", data)
+                print(f"Ação inválida para Email: {data['action']}")
         except KeyError as e:
             print(f"Erro ao processar Email, chave ausente: {e}")
+
+    async def __process_sms(self, data: dict):
+        try:
+            print(f"Processando SMS com dados: {data}")
+            if data["action"] == "SMS sent":
+                to_number = data["content"]["to_number"]
+                message = data["content"]["message"]
+
+                await self.__send_sms(to_number, message)
+                print(f"SMS enviado com sucesso para {to_number}.")
+            else:
+                print(f"Ação inválida para SMS: {data['action']}")
+        except KeyError as e:
+            print(f"Erro ao processar SMS, chave ausente: {e}")
 
     @staticmethod
     async def __send_sms(to_number: EmailStr, message: str):
@@ -125,7 +127,6 @@ class RabbitmqConsumer:
                 async with aiosmtplib.SMTP(hostname=smtp_host, port=smtp_port, timeout=10) as client:
                     await client.login(smtp_user, smtp_password)
                     await client.send_message(message)
-                    print(f"E-mail enviado com sucesso para '{to_address}'!")
                     break
             except aiosmtplib.SMTPException as e:
                 print(f"Falha ao enviar e-mail (Tentativa {attempt}/{max_retries}): {e}")
@@ -135,4 +136,4 @@ class RabbitmqConsumer:
             attempt += 1
 
         if attempt > max_retries:
-            print("Máximo de tentativas alcançado. O envio do e-mail falhou.")
+            print(f"Máximo de tentativas alcançado. Falha ao enviar e-mail para {to_address}.")

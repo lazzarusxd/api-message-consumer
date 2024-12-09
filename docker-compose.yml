@@ -9,9 +9,3 @@ services:
     env_file:
       - .env
     command: sh -c "poetry run python main.py"
-    networks:
-      - shared-network
-
-networks:
-  shared-network:
-    name: shared-network
