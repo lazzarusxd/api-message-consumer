@@ -7,7 +7,6 @@ from aio_pika.exceptions import QueueEmpty
 from twilio.rest import Client
 import aiosmtplib
 import aio_pika
-from pydantic import EmailStr
 
 
 class RabbitmqConsumer:
@@ -88,7 +87,7 @@ class RabbitmqConsumer:
             print(f"Erro ao processar SMS, chave ausente: {e}")
 
     @staticmethod
-    async def __send_sms(to_number: EmailStr, message: str):
+    async def __send_sms(to_number: str, message: str):
         twilio_sid = environ.get("TWILIO_SID")
         twilio_auth_token = environ.get("TWILIO_AUTH_TOKEN")
         twilio_phone_number = environ.get("TWILIO_PHONE_NUMBER")
